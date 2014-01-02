@@ -238,6 +238,17 @@ class MyApp(wx.App):
         self.frame.txtctlMain.Bind(wx.EVT_TEXT_PASTE, self.OnPaste)
         self.frame.txtctlMain.Bind(wx.EVT_TEXT_URL, self.OnURL)
 
+        self.frame.button_1.Bind(wx.EVT_BUTTON, self.OnSend1)
+        self.frame.button_2.Bind(wx.EVT_BUTTON, self.OnSend2)
+        self.frame.button_3.Bind(wx.EVT_BUTTON, self.OnSend3)
+        self.frame.button_4.Bind(wx.EVT_BUTTON, self.OnSend4)
+        self.frame.button_5.Bind(wx.EVT_BUTTON, self.OnSend5)
+        self.frame.button_6.Bind(wx.EVT_BUTTON, self.OnSend6)
+        self.frame.button_7.Bind(wx.EVT_BUTTON, self.OnSend7)
+        self.frame.button_8.Bind(wx.EVT_BUTTON, self.OnSend8)
+        self.frame.button_9.Bind(wx.EVT_BUTTON, self.OnSend9)
+        self.frame.button_10.Bind(wx.EVT_BUTTON, self.OnSend10)
+
         self.SetTopWindow(self.frame)
         self.frame.SetTitle( appInfo.title )
         self.frame.Show()
@@ -245,6 +256,39 @@ class MyApp(wx.App):
         self.evtPortOpen = threading.Event()
 
         return True
+
+    def SendCsvData(idx):
+        self.csvData[idx]
+
+    def OnSend1(self):
+        self.SendCsvData(0)
+
+    def OnSend2(self):
+        self.SendCsvData(1)
+
+    def OnSend3(self):
+        self.SendCsvData(2)
+
+    def OnSend4(self):
+        self.SendCsvData(3)
+
+    def OnSend5(self):
+        self.SendCsvData(4)
+
+    def OnSend6(self):
+        self.SendCsvData(5)
+
+    def OnSend7(self):
+        self.SendCsvData(6)
+
+    def OnSend8(self):
+        self.SendCsvData(7)
+
+    def OnSend9(self):
+        self.SendCsvData(8)
+
+    def OnSend10(self):
+        self.SendCsvData(9)
 
     def OnOpenCSV(self, evt):
         dlg = wx.FileDialog(self.frame,
@@ -264,12 +308,34 @@ class MyApp(wx.App):
             data = DSV.organizeIntoLines(data, textQualifier = qualifier)
             delimiter = DSV.guessDelimiter(data) # optional
             self.csvData = DSV.importDSV(data, delimiter = delimiter, textQualifier = qualifier)
-            print self.csvData
 #            hasHeader = DSV.guessHeaders(data) # optional
 
             file.close()
 
         dlg.Destroy()
+
+        rows = len(self.csvData)
+        cols = max([len(row) for row in self.csvData])
+        self.frame.grid_csv.BeginBatch()
+        try: self.frame.grid_csv.DeleteCols(0, self.frame.grid_csv.GetNumberCols())
+        except: pass
+        try: self.frame.grid_csv.DeleteRows(0, self.frame.grid_csv.GetNumberRows())
+        except: pass
+        self.frame.grid_csv.ClearGrid()
+
+        self.frame.grid_csv.AppendRows(rows)
+        self.frame.grid_csv.AppendCols(cols)
+        self.frame.grid_csv.SetColLabelSize(21)
+        self.frame.grid_csv.SetRowLabelSize(30)
+
+        for row in range(rows):
+            self.frame.grid_csv.SetRowSize(row, 20)
+            for col in range(cols):
+                try:    self.frame.grid_csv.SetCellValue(row, col, str(self.csvData[row][col]))
+                except: pass
+        self.frame.grid_csv.AutoSizeColumns()
+
+        self.frame.grid_csv.EndBatch()
 
     def LoadSettings(self):
         self.config.read('setting.ini')
