@@ -257,37 +257,48 @@ class MyApp(wx.App):
 
         return True
 
-    def SendCsvData(idx):
-        self.csvData[idx]
+    def SendCsvData(self, idx):
+        str = ''.join([chr(int(m, 16)) for m in self.csvData[idx] if m.isdigit()])
+        print str
 
-    def OnSend1(self):
+        if serialport.isOpen():
+            try:
+                serialport.write( str )
+            except serial.SerialException, e:
+                evt = SerialExceptEvent(self.frame.GetId(), e)
+                self.frame.GetEventHandler().AddPendingEvent(evt)
+            else:
+                self.txCount += len( str )
+                self.frame.statusbar.SetStatusText('Tx:%d' % self.txCount, 2)
+
+    def OnSend1(self, evt):
         self.SendCsvData(0)
 
-    def OnSend2(self):
+    def OnSend2(self, evt):
         self.SendCsvData(1)
 
-    def OnSend3(self):
+    def OnSend3(self, evt):
         self.SendCsvData(2)
 
-    def OnSend4(self):
+    def OnSend4(self, evt):
         self.SendCsvData(3)
 
-    def OnSend5(self):
+    def OnSend5(self, evt):
         self.SendCsvData(4)
 
-    def OnSend6(self):
+    def OnSend6(self, evt):
         self.SendCsvData(5)
 
-    def OnSend7(self):
+    def OnSend7(self, evt):
         self.SendCsvData(6)
 
-    def OnSend8(self):
+    def OnSend8(self, evt):
         self.SendCsvData(7)
 
-    def OnSend9(self):
+    def OnSend9(self, evt):
         self.SendCsvData(8)
 
-    def OnSend10(self):
+    def OnSend10(self, evt):
         self.SendCsvData(9)
 
     def OnOpenCSV(self, evt):
@@ -307,7 +318,8 @@ class MyApp(wx.App):
             qualifier = DSV.guessTextQualifier(data) # optional
             data = DSV.organizeIntoLines(data, textQualifier = qualifier)
             delimiter = DSV.guessDelimiter(data) # optional
-            self.csvData = DSV.importDSV(data, delimiter = delimiter, textQualifier = qualifier)
+#            self.csvData = DSV.importDSV(data, delimiter = delimiter, textQualifier = qualifier)
+            self.csvData = DSV.importDSV(data, delimiter = ',', textQualifier = None)
 #            hasHeader = DSV.guessHeaders(data) # optional
 
             file.close()
