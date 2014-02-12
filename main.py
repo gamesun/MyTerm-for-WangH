@@ -33,7 +33,7 @@
 
 import sys, os
 import wx
-import GUI as ui
+import GUI2 as ui
 import threading
 import re
 import serial
@@ -50,6 +50,8 @@ import glob
 import subprocess
 import ConfigParser
 import DSV
+from struct import *
+import datetime
 
 MAINMENU  = 0
 SUBMENU   = 1
@@ -67,6 +69,8 @@ THREAD_TIMEOUT = 0.5
 SERIAL_WRITE_TIMEOUT = 0.5
 SASHPOSITION = 180
 
+
+COL_CHKSUM = 8
 
 if sys.platform == 'win32':
     DIRECTORY_SEPARATER = '\\'
@@ -145,8 +149,9 @@ MENU_ID_RX_HEX_U = wx.NewId()
 MenuDefs = (
 MAINMENU,
 ('&File', (
-    (MENUITEM,  wx.NewId(), '&Open',      'Open a csv file' ,    'self.OnOpenCSV'      ),
-#    (MENUITEM,  wx.NewId(), '&Save',      'Save the log to a file' ,    'self.OnSave'      ),
+    (MENUITEM,  wx.NewId(), '&Open CSV',   'Open a csv file' ,    'self.OnOpenCSV'      ),
+    (SEPARATOR,),
+    (MENUITEM,  wx.NewId(), '&Save Log',   'Save the log to a file' ,    'self.OnSave'     ),
     (SEPARATOR,),
     (MENUITEM,  wx.NewId(), '&Exit MyTerm',       'Exit MyTerm',        'self.OnExitApp'   ),
 )),
@@ -216,18 +221,24 @@ class MyApp(wx.App):
         self.rxCount = 0
         self.txCount = 0
 
+        self.csvFilePath = ""
+        
         self.config = ConfigParser.RawConfigParser()
         self.LoadSettings()
 
         self.csvData = []
-
-
+        self.frame.grid_csv.SetRowLabelSize(0)
+        rows = self.frame.grid_csv.GetNumberRows()
+        for row in range(rows):
+            self.frame.grid_csv.SetRowSize(row, 20)
+        
         # bind events
         self.frame.btnHideBar.Bind(wx.EVT_BUTTON, self.OnHideSettingBar)
         self.frame.btnOpen.Bind(wx.EVT_BUTTON, self.OnBtnOpen)
         self.frame.btnEnumPorts.Bind(wx.EVT_BUTTON, self.OnEnumPorts)
         self.frame.btnClear.Bind(wx.EVT_BUTTON, self.OnClear)
-
+        self.frame.btnTransmitHex.Bind(wx.EVT_BUTTON, self.OnTransmitHex)
+        
 #         self.frame.Bind(wx.EVT_WINDOW_DESTROY, self.Cleanup)
         self.frame.Bind(wx.EVT_CLOSE, self.Cleanup)
 
@@ -238,17 +249,11 @@ class MyApp(wx.App):
         self.frame.txtctlMain.Bind(wx.EVT_TEXT_PASTE, self.OnPaste)
         self.frame.txtctlMain.Bind(wx.EVT_TEXT_URL, self.OnURL)
 
-        self.frame.button_1.Bind(wx.EVT_BUTTON, self.OnSend1)
-        self.frame.button_2.Bind(wx.EVT_BUTTON, self.OnSend2)
-        self.frame.button_3.Bind(wx.EVT_BUTTON, self.OnSend3)
-        self.frame.button_4.Bind(wx.EVT_BUTTON, self.OnSend4)
-        self.frame.button_5.Bind(wx.EVT_BUTTON, self.OnSend5)
-        self.frame.button_6.Bind(wx.EVT_BUTTON, self.OnSend6)
-        self.frame.button_7.Bind(wx.EVT_BUTTON, self.OnSend7)
-        self.frame.button_8.Bind(wx.EVT_BUTTON, self.OnSend8)
-        self.frame.button_9.Bind(wx.EVT_BUTTON, self.OnSend9)
-        self.frame.button_10.Bind(wx.EVT_BUTTON, self.OnSend10)
+        self.frame.grid_csv.Bind(wx.grid.EVT_GRID_CELL_CHANGE, self.OnCellChange)
 
+        for i in range(1, 51):
+            exec("self.frame.button_%d.Bind(wx.EVT_BUTTON, lambda evt, self = self: self.OnSendCmd(evt, %d))" % (i, i))
+        
         self.SetTopWindow(self.frame)
         self.frame.SetTitle( appInfo.title )
         self.frame.Show()
@@ -256,51 +261,82 @@ class MyApp(wx.App):
         self.evtPortOpen = threading.Event()
 
         return True
+        
+    def OnSendCmd(self, evt, idx):
+        self.SendCsvData(idx - 1)
 
-    def SendCsvData(self, idx):
-        str = ''.join([chr(int(m, 16)) for m in self.csvData[idx] if m.isdigit()])
-        print str
-
+    def OnTransmitHex(self, evt = None):
+        hexStr = self.frame.txtTransmitHex.GetValue()
+        str = HexToByte(hexStr)
         if serialport.isOpen():
             try:
-                serialport.write( str )
+                serialport.write(str)
             except serial.SerialException, e:
                 evt = SerialExceptEvent(self.frame.GetId(), e)
                 self.frame.GetEventHandler().AddPendingEvent(evt)
             else:
-                self.txCount += len( str )
+                self.txCount += len(str)
                 self.frame.statusbar.SetStatusText('Tx:%d' % self.txCount, 2)
+                    
+                text = ''.join('%02X ' % ord(c) for c in str)
+                self.frame.txtctlMain.SetDefaultStyle(wx.TextAttr(colText=(0, 0, 255), alignment = wx.TEXT_ATTR_TEXT_COLOUR))
+                self.frame.txtctlMain.AppendText("\n%s T->:%s" % (datetime.datetime.now().time().isoformat()[:-3], text))
+                self.frame.txtctlMain.SetDefaultStyle(wx.TextAttr(colText=(0, 0, 0), alignment = wx.TEXT_ATTR_TEXT_COLOUR))
 
-    def OnSend1(self, evt):
-        self.SendCsvData(0)
+    def CalcChksum(self, row):
+        sum = 0
+        for col in range(2, 8):
+            try:    str = self.frame.grid_csv.GetCellValue(row, col)
+            except: str = ''
+            if str is not '':
+                str = '0' + str
+                sum = sum + int(str[-2] + str[-1], 16)
+                sum = sum & 0xff
+                sum = sum > 127 and sum - 256 or sum
+        chksum = pack('b', ~sum + 1)
+        return '%02x' % ord(chksum)
 
-    def OnSend2(self, evt):
-        self.SendCsvData(1)
+    def OnCellChange(self, evt):
+        row = evt.GetRow()
+        #col = evt.GetCol()
+        
+        self.frame.grid_csv.SetCellValue(row, COL_CHKSUM, self.CalcChksum(row))
 
-    def OnSend3(self, evt):
-        self.SendCsvData(2)
+#    def UpdateCsvData(self):
+#        rows = self.frame.grid_csv.GetNumberRows()
+#        cols = self.frame.grid_csv.GetNumberCols()
+#        for row in range(rows):
+#            for col in range(cols):
+#                try:    self.csvData[row][col] = self.frame.grid_csv.GetCellValue(row, col)
+#                except: pass
 
-    def OnSend4(self, evt):
-        self.SendCsvData(3)
+    def SendCsvData(self, idx):
+        try:
+            data = ['0' + self.frame.grid_csv.GetCellValue(idx, col) for col in range(1, 9) if self.frame.grid_csv.GetCellValue(idx, col) is not '']
+        except:
+            print "Exception in SendCsvData(index = %d)" % (idx + 1)
+        else:
+            data = [int(d[-2] + d[-1], 16) for d in data if d is not '']
+            data.insert(0, 0xfe)
+            #print data
+            str = ''.join([chr(m) for m in data])
+            #print repr(str)
 
-    def OnSend5(self, evt):
-        self.SendCsvData(4)
-
-    def OnSend6(self, evt):
-        self.SendCsvData(5)
-
-    def OnSend7(self, evt):
-        self.SendCsvData(6)
-
-    def OnSend8(self, evt):
-        self.SendCsvData(7)
-
-    def OnSend9(self, evt):
-        self.SendCsvData(8)
-
-    def OnSend10(self, evt):
-        self.SendCsvData(9)
-
+            if serialport.isOpen():
+                try:
+                    serialport.write( str )
+                except serial.SerialException, e:
+                    evt = SerialExceptEvent(self.frame.GetId(), e)
+                    self.frame.GetEventHandler().AddPendingEvent(evt)
+                else:
+                    self.txCount += len( str )
+                    self.frame.statusbar.SetStatusText('Tx:%d' % self.txCount, 2)
+                    
+                    text = ''.join('%02X ' % ord(c) for c in str)
+                    self.frame.txtctlMain.SetDefaultStyle(wx.TextAttr(colText=(0, 0, 255), alignment = wx.TEXT_ATTR_TEXT_COLOUR))
+                    self.frame.txtctlMain.AppendText("\n%s T->:%s" % (datetime.datetime.now().time().isoformat()[:-3], text))
+                    self.frame.txtctlMain.SetDefaultStyle(wx.TextAttr(colText=(0, 0, 0), alignment = wx.TEXT_ATTR_TEXT_COLOUR))
+                    
     def OnOpenCSV(self, evt):
         dlg = wx.FileDialog(self.frame,
                            defaultDir = os.getcwd(),
@@ -309,45 +345,57 @@ class MyApp(wx.App):
 
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
-
-            file = open(path, 'rU')
-
-            # read file's all lines to a list
-            #lstData = file.readlines()
-            data = file.read()
-            qualifier = DSV.guessTextQualifier(data) # optional
-            data = DSV.organizeIntoLines(data, textQualifier = qualifier)
-            delimiter = DSV.guessDelimiter(data) # optional
-#            self.csvData = DSV.importDSV(data, delimiter = delimiter, textQualifier = qualifier)
-            self.csvData = DSV.importDSV(data, delimiter = ',', textQualifier = None)
-#            hasHeader = DSV.guessHeaders(data) # optional
-
-            file.close()
+            self.LoadCsvFile(path)
 
         dlg.Destroy()
 
-        rows = len(self.csvData)
-        cols = max([len(row) for row in self.csvData])
-        self.frame.grid_csv.BeginBatch()
-        try: self.frame.grid_csv.DeleteCols(0, self.frame.grid_csv.GetNumberCols())
-        except: pass
-        try: self.frame.grid_csv.DeleteRows(0, self.frame.grid_csv.GetNumberRows())
-        except: pass
-        self.frame.grid_csv.ClearGrid()
+    def LoadCsvFile(self, path):
+        try:
+            file = open(path, 'rU')
+            self.csvFilePath = path
+            data = file.read()
+            file.close()
+        except IOError as e:
+            self.csvFilePath = ""
+            print("({})".format(e))
+            return
+            
+        #qualifier = DSV.guessTextQualifier(data) # optional
+        data = DSV.organizeIntoLines(data, textQualifier = None)
+        #delimiter = DSV.guessDelimiter(data) # optional
+#        self.csvData = DSV.importDSV(data, delimiter = delimiter, textQualifier = qualifier)
+        self.csvData = DSV.importDSV(data, delimiter = ',', textQualifier = None)
+#        hasHeader = DSV.guessHeaders(data) # optional
+        
+        
+        if len(self.csvData) is not 0:
+            rows = max(len(self.csvData), 10)
+            cols = max(max([len(row) for row in self.csvData]), 10)
+            self.frame.grid_csv.BeginBatch()
+            try: self.frame.grid_csv.DeleteCols(0, self.frame.grid_csv.GetNumberCols())
+            except: pass
+            try: self.frame.grid_csv.DeleteRows(0, self.frame.grid_csv.GetNumberRows())
+            except: pass
+            self.frame.grid_csv.ClearGrid()
 
-        self.frame.grid_csv.AppendRows(rows)
-        self.frame.grid_csv.AppendCols(cols)
-        self.frame.grid_csv.SetColLabelSize(21)
-        self.frame.grid_csv.SetRowLabelSize(30)
+            self.frame.grid_csv.AppendRows(rows)
+            self.frame.grid_csv.AppendCols(cols)
+            self.frame.grid_csv.SetColLabelSize(21)
+#            self.frame.grid_csv.SetRowLabelSize(0)
 
-        for row in range(rows):
-            self.frame.grid_csv.SetRowSize(row, 20)
-            for col in range(cols):
-                try:    self.frame.grid_csv.SetCellValue(row, col, str(self.csvData[row][col]))
-                except: pass
-        self.frame.grid_csv.AutoSizeColumns()
-
-        self.frame.grid_csv.EndBatch()
+            for row in range(rows):
+                self.frame.grid_csv.SetRowSize(row, 20)
+                for col in range(cols):
+                    try:    self.frame.grid_csv.SetCellValue(row, col, str(self.csvData[row][col]))
+                    except: pass
+                self.frame.grid_csv.SetCellValue(row, COL_CHKSUM, self.CalcChksum(row))
+                
+            self.frame.grid_csv.AutoSizeColumns()
+            
+            for col in range(1, cols):
+                self.frame.grid_csv.SetColSize(col, 35)
+            
+            self.frame.grid_csv.EndBatch()
 
     def LoadSettings(self):
         self.config.read('setting.ini')
@@ -391,9 +439,11 @@ class MyApp(wx.App):
                 self.localEcho = False
                 self.frame.statusbar.SetStatusText('Local echo:Off', 4)
 
-#             MENU_ID_LOCAL_ECHO
+        if self.config.has_section('csv_file'):
+            self.LoadCsvFile(self.config.get('csv_file', 'path'))
 
     def SaveSettings(self):
+        print "save setting"
         if not self.config.has_section('serial'):
             self.config.add_section('serial')
 
@@ -420,6 +470,11 @@ class MyApp(wx.App):
 
         self.config.set('display', 'local_echo', self.localEcho and 'on' or 'off')
 
+        if not self.config.has_section('csv_file'):
+            self.config.add_section('csv_file')
+            
+        self.config.set('csv_file', 'path', self.csvFilePath)
+            
         with open('setting.ini', 'w') as configfile:
             self.config.write(configfile)
 
@@ -448,7 +503,6 @@ class MyApp(wx.App):
 
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
-            print "You selected %s\n" % path,
 
             f = open(path, 'w')
 
@@ -605,7 +659,8 @@ class MyApp(wx.App):
             try:
                 text = serialport.read(1)      # block for THREAD_TIMEOUT = 0.5s
             except serial.SerialException, e:
-                evt = SerialExceptEvent(self.frame.GetId(), e)
+                #evt = SerialExceptEvent(self.frame.GetId(), e)
+                evt = SerialExceptEvent(self.frame.GetId(), None)
                 self.frame.GetEventHandler().AddPendingEvent(evt)
                 print 'thread exit for except'
                 return -1
@@ -619,10 +674,12 @@ class MyApp(wx.App):
                 if self.rxmode == HEX_LOWERCASE:
                     self.rxCount += len(text)
                     text = ''.join('%02x ' % ord(t) for t in text)
+                    text = text.replace("fd", "\n%s:R<-\tfd" % datetime.datetime.now().time().isoformat()[:-3])
                     self.frame.txtctlMain.AppendText(text)
                 elif self.rxmode == HEX_UPPERCASE:
                     self.rxCount += len(text)
                     text = ''.join('%02X ' % ord(t) for t in text)
+                    text = text.replace("FD", "\n%s:R<-\tFD" % datetime.datetime.now().time().isoformat()[:-3])
                     self.frame.txtctlMain.AppendText(text)
                 else:
                     text = text.replace('\n', '')
@@ -719,9 +776,11 @@ class MyApp(wx.App):
 
     def OnSerialExcept(self, evt):
         e = evt.param
-        dlg = wx.MessageDialog(None, str(e), "Serial Port Error", wx.OK | wx.ICON_ERROR)
-        dlg.ShowModal()
-        dlg.Destroy()
+        if e is not None:
+            #dlg = wx.MessageDialog(None, str(e), "Serial Port Error", wx.OK | wx.ICON_ERROR)
+            #dlg.ShowModal()
+            #dlg.Destroy()
+            print "Serial Port Error:" + str(e)
 
         self.StopThread()
         serialport.close()
@@ -804,6 +863,26 @@ class MyApp(wx.App):
             if self.thread is not None:
                 assert not self.thread.is_alive(), "the thread should be dead but isn't!"
 #             self.threadCommunicate.terminate()
+
+def HexToByte(hexStr):
+    """
+    Convert a string hex byte values into a byte string. The Hex Byte values may
+    or may not be space separated.
+    """
+    # The list comprehension implementation is fractionally slower in this case
+    #
+    #    hexStr = ''.join( hexStr.split(" ") )
+    #    return ''.join( ["%c" % chr( int ( hexStr[i:i+2],16 ) ) \
+    #                                   for i in range(0, len( hexStr ), 2) ] )
+
+    bytes = []
+
+    hexStr = ''.join( hexStr.split(" ") )
+
+    for i in range(0, len(hexStr), 2):
+        bytes.append( chr( int (hexStr[i:i+2], 16 ) ) )
+
+    return ''.join( bytes )
 
 
 if __name__ == '__main__':
