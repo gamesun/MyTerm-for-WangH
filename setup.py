@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 #
-# Copyright (c) 2013, gamesun
+# Copyright (c) 2013-2014, gamesun
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,13 @@ import os
 import glob
 from py2exe.build_exe import py2exe as build_exe
 import appInfo
+
+origIsSystemDLL = py2exe.build_exe.isSystemDLL
+def isSystemDLL(pathname):
+        if os.path.basename(pathname).lower() in ("msvcp71.dll", "dwmapi.dll"):
+                return 0
+        return origIsSystemDLL(pathname)
+py2exe.build_exe.isSystemDLL = isSystemDLL
 
 if len(sys.argv) == 1:
     sys.argv.append("py2exe")
