@@ -32,9 +32,9 @@
 #
 
 title = 'MyTerm for WangH'
-version = '1.3'
+version = '1.3.1'
 file_name = title + ' ' + version
 url = 'https://github.com/gamesun/MyTerm-for-WangH'
 author = 'gamesun'
-copyright = 'Copyright (C) 2013, gamesun'
+copyright = 'Copyright (C) 2013-2014, gamesun'
 

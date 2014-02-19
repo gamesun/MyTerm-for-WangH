@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 #
-# Copyright (c) 2013, gamesun
+# Copyright (c) 2013-2014, gamesun
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -288,11 +288,14 @@ class MyApp(wx.App):
         for col in range(2, 8):
             try:    str = self.frame.grid_csv.GetCellValue(row, col)
             except: str = ''
-            if str is not '':
+            if len(str) is not 0:
                 str = '0' + str
                 sum = sum + int(str[-2] + str[-1], 16)
                 sum = sum & 0xff
-                sum = sum > 127 and sum - 256 or sum
+                if 128 <= sum:
+                    sum -= 255
+                elif sum <= -127:
+                    sum += 255
         chksum = pack('b', ~sum + 1)
         return '%02x' % ord(chksum)
 
