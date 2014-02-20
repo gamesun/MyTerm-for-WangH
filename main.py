@@ -292,10 +292,10 @@ class MyApp(wx.App):
                 str = '0' + str
                 sum = sum + int(str[-2] + str[-1], 16)
                 sum = sum & 0xff
-                if 128 <= sum:
-                    sum -= 255
-                elif sum <= -127:
-                    sum += 255
+                if 128 < sum:
+                    sum -= 256
+                elif sum < -127:
+                    sum += 256
         chksum = pack('b', ~sum + 1)
         return '%02x' % ord(chksum)
 
@@ -446,7 +446,6 @@ class MyApp(wx.App):
             self.LoadCsvFile(self.config.get('csv_file', 'path'))
 
     def SaveSettings(self):
-        print "save setting"
         if not self.config.has_section('serial'):
             self.config.add_section('serial')
 
