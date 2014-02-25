@@ -220,8 +220,10 @@ class MyApp(wx.App):
         self.localEcho = False
         self.rxCount = 0
         self.txCount = 0
-
         self.csvFilePath = ""
+        
+        self.menuBar.Check(MENU_ID_RX_HEX_U, True)
+        self.OnRxHexModeUppercase()
         
         self.config = ConfigParser.RawConfigParser()
         self.LoadSettings()
@@ -296,7 +298,7 @@ class MyApp(wx.App):
                     sum -= 256
                 elif sum < -127:
                     sum += 256
-        chksum = pack('b', ~sum + 1)
+        chksum = pack('b', (~sum + 1) & 0x7f)
         return '%02x' % ord(chksum)
 
     def OnCellChange(self, evt):
