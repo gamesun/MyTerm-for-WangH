@@ -412,8 +412,9 @@ class MyApp(wx.App):
             self.frame.grid_csv.EndBatch()
 
     def LoadSettings(self):
-        self.config.read('setting.ini')
+        self.config.read("%s\\setting.ini" % os.path.dirname(os.path.realpath(__file__)))
 
+        # use unicode(self.config.get('...', '...'), 'utf-8') to convert the ASCII string to utf8 if needed.
         if self.config.has_section('serial'):
             self.frame.cmbPort.SetStringSelection(self.config.get('serial', 'port'))
             self.frame.cmbBaudRate.SetStringSelection(self.config.get('serial', 'baudrate'))
