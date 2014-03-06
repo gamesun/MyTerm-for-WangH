@@ -53,8 +53,8 @@ import DSV
 from struct import *
 import datetime
 
-reload(sys)
-sys.setdefaultencoding('utf-8')
+#reload(sys)
+#sys.setdefaultencoding('utf-8')
 
 MAINMENU  = 0
 SUBMENU   = 1
@@ -223,17 +223,11 @@ class MyApp(wx.App):
         self.localEcho = False
         self.rxCount = 0
         self.txCount = 0
-<<<<<<< HEAD
-
-        self.csvFilePath = ""
-        
-=======
         self.csvFilePath = ""
         
         self.menuBar.Check(MENU_ID_RX_HEX_U, True)
         self.OnRxHexModeUppercase()
         
->>>>>>> 969586f67448271cfec7b7ae4545e6da410a5479
         self.config = ConfigParser.RawConfigParser()
         self.LoadSettings()
 
@@ -412,7 +406,7 @@ class MyApp(wx.App):
             self.frame.grid_csv.EndBatch()
 
     def LoadSettings(self):
-        self.config.read("%s\\setting.ini" % os.path.dirname(os.path.realpath(__file__)))
+        self.config.read("%s\\setting.ini" % os.path.dirname(os.path.realpath(sys.argv[0])))
 
         # use unicode(self.config.get('...', '...'), 'utf-8') to convert the ASCII string to utf8 if needed.
         if self.config.has_section('serial'):
@@ -455,7 +449,9 @@ class MyApp(wx.App):
                 self.frame.statusbar.SetStatusText('Local echo:Off', 4)
 
         if self.config.has_section('csv_file'):
-            self.LoadCsvFile(self.config.get('csv_file', 'path'))
+            path = self.config.get('csv_file', 'path')
+            if path is not "":
+                self.LoadCsvFile(path)
 
     def SaveSettings(self):
         print "save setting"
@@ -490,7 +486,7 @@ class MyApp(wx.App):
             
         self.config.set('csv_file', 'path', self.csvFilePath)
             
-        with open("%s\\setting.ini" % os.path.dirname(os.path.realpath(__file__)), 'w') as configfile:
+        with open("%s\\setting.ini" % os.path.dirname(os.path.realpath(sys.argv[0])), 'w') as configfile:
             self.config.write(configfile)
 
     def OnURL(self, evt):
