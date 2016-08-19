@@ -308,7 +308,7 @@ class MyApp(wx.App):
         row = evt.GetRow()
         #col = evt.GetCol()
         
-        self.frame.grid_csv.SetCellValue(row, COL_CHKSUM, self.CalcChksum(row))
+        # self.frame.grid_csv.SetCellValue(row, COL_CHKSUM, self.CalcChksum(row))
 
 #    def UpdateCsvData(self):
 #        rows = self.frame.grid_csv.GetNumberRows()
@@ -320,13 +320,14 @@ class MyApp(wx.App):
 
     def SendCsvData(self, idx):
         try:
-            data = ['0' + self.frame.grid_csv.GetCellValue(idx, col) for col in range(1, 9) if self.frame.grid_csv.GetCellValue(idx, col) is not '']
+            data = ['0' + self.frame.grid_csv.GetCellValue(idx, col) for col in range(0, 100) if self.frame.grid_csv.GetCellValue(idx, col) is not u'']
         except:
             print "Exception in SendCsvData(index = %d)" % (idx + 1)
         else:
+            # print data
             data = [int(d[-2] + d[-1], 16) for d in data if d is not '']
-            data.insert(0, 0xfe)
-            #print data
+            # data.insert(0, 0xfe)
+            print repr(data)
             str = ''.join([chr(m) for m in data])
             #print repr(str)
 
@@ -377,8 +378,8 @@ class MyApp(wx.App):
         
         
         if len(self.csvData) is not 0:
-            rows = max(len(self.csvData), 10)
-            cols = max(max([len(row) for row in self.csvData]), 10)
+            rows = max(len(self.csvData), 50)
+            cols = max(max([len(row) for row in self.csvData]), 100)
             self.frame.grid_csv.BeginBatch()
             try: self.frame.grid_csv.DeleteCols(0, self.frame.grid_csv.GetNumberCols())
             except: pass
@@ -396,12 +397,12 @@ class MyApp(wx.App):
                 for col in range(cols):
                     try:    self.frame.grid_csv.SetCellValue(row, col, str(self.csvData[row][col]))
                     except: pass
-                self.frame.grid_csv.SetCellValue(row, COL_CHKSUM, self.CalcChksum(row))
+                #self.frame.grid_csv.SetCellValue(row, COL_CHKSUM, self.CalcChksum(row))
                 
             self.frame.grid_csv.AutoSizeColumns()
             
             for col in range(1, cols):
-                self.frame.grid_csv.SetColSize(col, 35)
+                self.frame.grid_csv.SetColSize(col, 20)
             
             self.frame.grid_csv.EndBatch()
 
@@ -513,24 +514,25 @@ class MyApp(wx.App):
                             style = wx.SAVE | wx.CHANGE_DIR)
 
         if dlg.ShowModal() == wx.ID_OK:
+            import codecs
             path = dlg.GetPath()
 
-            f = open(path, 'w')
-
+            f = codecs.open(path, 'w', 'utf-8')
+            #f.write(u'\ufeff')    # BOM
             f.write(self.frame.txtctlMain.GetValue())
-
             f.close()
 
         dlg.Destroy()
 
     def GetPort(self):
-        if sys.platform == 'win32':
-            r = regex_matchPort.search(self.frame.cmbPort.GetValue())
-            if r:
-                return int(r.group('port')) - 1
-            return
-        elif sys.platform.startswith('linux'):
-            return self.frame.cmbPort.GetValue()
+#        if sys.platform == 'win32':
+#            r = regex_matchPort.search(self.frame.cmbPort.GetValue())
+#            if r:
+#                return int(r.group('port')) - 1
+#            return
+#        elif sys.platform.startswith('linux'):
+#            return self.frame.cmbPort.GetValue()
+        return self.frame.cmbPort.GetValue()
 
     def GetBaudRate(self):
         return int(self.frame.cmbBaudRate.GetValue())
@@ -846,7 +848,7 @@ class MyApp(wx.App):
         info.Version = appInfo.version
         info.Copyright = appInfo.copyright
         info.Description = wordwrap(
-            '\nThe "MyTerm for-WangH" has special functions aiming at debugging easily in my friend Wang.H\'s work. '
+            '\nThe "MyTerm for-BD" has special functions aiming at debugging easily on BD. '
             '\n> Display the csv files\' contect.'
             '\n> Edit csv files.'
             '\n> Transmitting the data from csv files.',
