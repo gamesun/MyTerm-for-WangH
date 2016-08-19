@@ -31,10 +31,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-title = 'MyTerm for WangH'
-version = '1.3.3'
+title = 'MyTerm for BD'
+version = '1.0.0'
 file_name = title + ' ' + version
-url = 'https://github.com/gamesun/MyTerm-for-WangH'
+url = ''
 author = 'gamesun'
-copyright = 'Copyright (C) 2013-2014, gamesun'
+copyright = 'Copyright (C) 2013-2016, gamesun'
 
