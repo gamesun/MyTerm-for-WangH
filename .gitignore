@@ -71,6 +71,9 @@ nosetests.xml
 # backup files
 *.bak
 
+Release/
+setting.ini
+
 #############
 ## wxGlade
 #############
